@@ -62,6 +62,57 @@ public sealed class ContainerCompositionService(
         return true;
     }
 
+    public async Task<bool> BuildImageForBindingMounts(
+        string imageName,
+        Dictionary<string, string> volumes,
+        ContainerParameters parameters,
+        bool nonInteractive = false)
+    {
+        var tempDirectoryPath = filesystem.Path.Combine(filesystem.Path.GetTempPath(), filesystem.Path.GetRandomFileName());
+        filesystem.Directory.CreateDirectory(tempDirectoryPath);
+
+        StageBindingMounts(filesystem, volumes, tempDirectoryPath);
+
+        var dockerfileContent = new StringBuilder()
+            .AppendLine("FROM busybox");
+
+        foreach (var volume in volumes)
+        {
+            dockerfileContent.AppendLine($"COPY {volume.Value} {volume.Value}");
+        }
+
+        var dockerfileContentStr = dockerfileContent.ToString();
+
+        var tempFilePath = filesystem.Path.Combine(tempDirectoryPath, "Dockerfile");
+        await filesystem.File.WriteAllTextAsync(tempFilePath, dockerfileContentStr);
+
+        var buildArgumentBuilder = ArgumentsBuilder
+            .Create()
+            .AppendArgument(DockerLiterals.BuildCommand, string.Empty, quoteValue: false)
+            .AppendArgument(DockerLiterals.TagArgument, imageName.ToLower())
+            .AppendArgument(DockerLiterals.DockerFileArgument, tempFilePath)
+            .AppendArgument(tempDirectoryPath, string.Empty, quoteValue: true);
+
+        var buildResult = await shellExecutionService.ExecuteCommand(new ShellCommandOptions
+        {
+            Command = parameters.ContainerBuilder,
+            ArgumentsBuilder = buildArgumentBuilder,
+            NonInteractive = nonInteractive,
+            ShowOutput = true,
+        });
+
+        filesystem.Directory.Delete(tempDirectoryPath, true);
+
+        if (!buildResult.Success)
+        {
+            console.MarkupLine("[red bold]Failed to build Docker image containing binding-mount data.[/]");
+            return false;
+        }
+
+        console.MarkupLine($"[green bold]Successfully built Docker image '{imageName}' which contains binding mount data.[/]");
+        return true;
+    }
+
     private async Task<ShellCommandResult> PushContainer(string builder, string? registry, List<string> fullImages, bool? nonInteractive)
     {
         if (!string.IsNullOrEmpty(registry))
@@ -237,6 +288,15 @@ public sealed class ContainerCompositionService(
         foreach (var (key, value) in dockerfileEnv)
         {
             argumentsBuilder.AppendArgument(DockerLiterals.BuildArgArgument, $"{key}=\"{value}\"", quoteValue: false, allowDuplicates: true);
+        }
+    }
+
+    private static void StageBindingMounts(IFileSystem fileSystem, Dictionary<string, string> volumes, string tempDirectoryPath)
+    {
+        foreach (var (sourcePath, value) in volumes)
+        {
+            var targetPath = fileSystem.Path.Combine(tempDirectoryPath, value);
+            fileSystem.CopyDirectoryRecursively(sourcePath, targetPath);
         }
     }
 

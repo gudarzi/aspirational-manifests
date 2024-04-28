@@ -312,6 +312,72 @@ public class ContainerCompositionServiceTest
         options.ArgumentsBuilder.RenderArguments().Should().Be(expectedArgumentsOutput);
     }
 
+    [Fact]
+    public async Task BuildImageForBindingMounts_ShouldReturnTrue_WhenBuildSucceeds()
+    {
+        // Arrange
+        var imageName = "testImage";
+        var volumes = new Dictionary<string, string> { { "/source/path", "/target/path" } };
+        var parameters = new ContainerParameters();
+        var nonInteractive = false;
+
+        var mockFileSystem = new MockFileSystem();
+        mockFileSystem.AddDirectory("/source/path");
+
+        var mockConsole = Substitute.For<IAnsiConsole>();
+        var mockProjectPropertyService = Substitute.For<IProjectPropertyService>();
+        var mockShellExecutionService = Substitute.For<IShellExecutionService>();
+
+        mockShellExecutionService
+            .ExecuteCommand(Arg.Any<ShellCommandOptions>())
+            .Returns(new ShellCommandResult(true, string.Empty, string.Empty, 0));
+
+        var service = new ContainerCompositionService(
+            mockFileSystem,
+            mockConsole,
+            mockProjectPropertyService,
+            mockShellExecutionService);
+
+        // Act
+        var result = await service.BuildImageForBindingMounts(imageName, volumes, parameters, nonInteractive);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task BuildImageForBindingMounts_ShouldReturnFalse_WhenBuildFails()
+    {
+        // Arrange
+        var imageName = "testImage";
+        var volumes = new Dictionary<string, string> { { "/source/path", "/target/path" } };
+        var parameters = new ContainerParameters();
+        var nonInteractive = false;
+
+        var mockFileSystem = new MockFileSystem();
+        mockFileSystem.AddDirectory("/source/path");
+
+        var mockConsole = Substitute.For<IAnsiConsole>();
+        var mockProjectPropertyService = Substitute.For<IProjectPropertyService>();
+        var mockShellExecutionService = Substitute.For<IShellExecutionService>();
+
+        mockShellExecutionService
+            .ExecuteCommand(Arg.Any<ShellCommandOptions>())
+            .Returns(new ShellCommandResult(false, string.Empty, string.Empty, 1));
+
+        var service = new ContainerCompositionService(
+            mockFileSystem,
+            mockConsole,
+            mockProjectPropertyService,
+            mockShellExecutionService);
+
+        // Act
+        var result = await service.BuildImageForBindingMounts(imageName, volumes, parameters, nonInteractive);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
     private static string DockerInfoOutput =>
         """
         {"ID":"b0f37fbe-6588-473d-aaa1-e06d79ac53d8","Containers":19,"ContainersRunning":19,"ContainersPaused":0,"ContainersStopped":0,"Images":10,"Driver":"overlay2","DriverStatus":[["Backing Filesystem","extfs"],["Supports d_type","true"],["Using metacopy","false"],["Native Overlay Diff","true"],["userxattr","false"]],"Plugins":{"Volume":["local"],"Network":["bridge","host","ipvlan","macvlan","null","overlay"],"Authorization":null,"Log":["awslogs","fluentd","gcplogs","gelf","journald","json-file","local","logentries","splunk","syslog"]},"MemoryLimit":true,"SwapLimit":true,"CpuCfsPeriod":true,"CpuCfsQuota":true,"CPUShares":true,"CPUSet":true,"PidsLimit":true,"IPv4Forwarding":true,"BridgeNfIptables":true,"BridgeNfIp6tables":true,"Debug":false,"NFd":162,"OomKillDisable":false,"NGoroutines":168,"SystemTime":"2023-12-21T16:40:46.714070722Z","LoggingDriver":"json-file","CgroupDriver":"cgroupfs","CgroupVersion":"2","NEventsListener":9,"KernelVersion":"6.4.16-linuxkit","OperatingSystem":"Docker Desktop","OSVersion":"","OSType":"linux","Architecture":"aarch64","IndexServerAddress":"https://index.docker.io/v1/","RegistryConfig":{"AllowNondistributableArtifactsCIDRs":null,"AllowNondistributableArtifactsHostnames":null,"InsecureRegistryCIDRs":["127.0.0.0/8"],"IndexConfigs":{"docker.io":{"Name":"docker.io","Mirrors":[],"Secure":true,"Official":true},"hubproxy.docker.internal:5555":{"Name":"hubproxy.docker.internal:5555","Mirrors":[],"Secure":false,"Official":false}},"Mirrors":null},"NCPU":10,"MemTotal":8225546240,"GenericResources":null,"DockerRootDir":"/var/lib/docker","HttpProxy":"http.docker.internal:3128","HttpsProxy":"http.docker.internal:3128","NoProxy":"hubproxy.docker.internal","Name":"linuxkit-1edf7766b1ac","Labels":[],"ExperimentalBuild":false,"ServerVersion":"24.0.6","Runtimes":{"io.containerd.runc.v2":{"path":"runc"},"runc":{"path":"runc"}},"DefaultRuntime":"runc","Swarm":{"NodeID":"","NodeAddr":"","LocalNodeState":"inactive","ControlAvailable":false,"Error":"","RemoteManagers":null},"LiveRestoreEnabled":false,"Isolation":"","InitBinary":"docker-init","ContainerdCommit":{"ID":"8165feabfdfe38c65b599c4993d227328c231fca","Expected":"8165feabfdfe38c65b599c4993d227328c231fca"},"RuncCommit":{"ID":"v1.1.8-0-g82f18fe","Expected":"v1.1.8-0-g82f18fe"},"InitCommit":{"ID":"de40ad0","Expected":"de40ad0"},"SecurityOptions":["name=seccomp,profile=unconfined","name=cgroupns"],"Warnings":["WARNING: daemon is not using the default seccomp profile"],"ClientInfo":{"Debug":false,"Version":"24.0.6","GitCommit":"ed223bc","GoVersion":"go1.20.7","Os":"darwin","Arch":"arm64","BuildTime":"Mon Sep  4 12:28:49 2023","Context":"desktop-linux","Plugins":[{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v0.11.2-desktop.5","ShortDescription":"Docker Buildx","Name":"buildx","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-buildx"},{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v2.23.0-desktop.1","ShortDescription":"Docker Compose","Name":"compose","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-compose"},{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v0.1.0","ShortDescription":"Docker Dev Environments","Name":"dev","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-dev"},{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v0.2.20","ShortDescription":"Manages Docker extensions","Name":"extension","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-extension"},{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v0.1.0-beta.9","ShortDescription":"Creates Docker-related starter files for your project","Name":"init","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-init"},{"SchemaVersion":"0.1.0","Vendor":"Anchore Inc.","Version":"0.6.0","ShortDescription":"View the packaged-based Software Bill Of Materials (SBOM) for an image","URL":"https://github.com/docker/sbom-cli-plugin","Name":"sbom","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-sbom"},{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v0.26.0","ShortDescription":"Docker Scan","Name":"scan","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-scan"},{"SchemaVersion":"0.1.0","Vendor":"Docker Inc.","Version":"v1.0.9","ShortDescription":"Docker Scout","Name":"scout","Path":"/Users/prom3theu5/.docker/cli-plugins/docker-scout"}],"Warnings":null}}
