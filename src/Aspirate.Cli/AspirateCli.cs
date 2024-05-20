@@ -26,7 +26,7 @@ internal class AspirateCli : RootCommand
 
     private static string GetAppDataFolder()
     {
-        var appDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AspirateLiterals.AppDataFolder);
+        var appDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AspirateLiterals.AspirateName);
 
         if (!Directory.Exists(appDataFolder))
         {

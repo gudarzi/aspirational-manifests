@@ -1,5 +1,3 @@
-using Aspirate.Shared.Outputs;
-
 namespace Aspirate.Tests.ServiceTests;
 
 public class ContainerCompositionServiceTest
@@ -318,11 +316,11 @@ public class ContainerCompositionServiceTest
         // Arrange
         var imageName = "testImage";
         var volumes = new Dictionary<string, string> { { "/source/path", "/target/path" } };
-        var parameters = new ContainerParameters();
         var nonInteractive = false;
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddDirectory("/source/path");
+        var options = BindMountImageBuilderOptions.NewInstance(mockFileSystem, "docker", imageName, volumes, nonInteractive);
 
         var mockConsole = Substitute.For<IAnsiConsole>();
         var mockProjectPropertyService = Substitute.For<IProjectPropertyService>();
@@ -339,7 +337,7 @@ public class ContainerCompositionServiceTest
             mockShellExecutionService);
 
         // Act
-        var result = await service.BuildImageForBindingMounts(imageName, volumes, parameters, nonInteractive);
+        var result = await service.BuildImageForBindingMounts(options);
 
         // Assert
         result.Should().BeTrue();
@@ -351,11 +349,11 @@ public class ContainerCompositionServiceTest
         // Arrange
         var imageName = "testImage";
         var volumes = new Dictionary<string, string> { { "/source/path", "/target/path" } };
-        var parameters = new ContainerParameters();
         var nonInteractive = false;
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddDirectory("/source/path");
+        var options = BindMountImageBuilderOptions.NewInstance(mockFileSystem, "docker", imageName, volumes, nonInteractive);
 
         var mockConsole = Substitute.For<IAnsiConsole>();
         var mockProjectPropertyService = Substitute.For<IProjectPropertyService>();
@@ -372,7 +370,7 @@ public class ContainerCompositionServiceTest
             mockShellExecutionService);
 
         // Act
-        var result = await service.BuildImageForBindingMounts(imageName, volumes, parameters, nonInteractive);
+        var result = await service.BuildImageForBindingMounts(options);
 
         // Assert
         result.Should().BeFalse();

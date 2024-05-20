@@ -24,6 +24,13 @@ public interface IContainerCompositionService
         string? runtimeIdentifier = null);
 
     /// <summary>
+    /// Asynchronously builds a Docker image for binding mounts.
+    /// </summary>
+    /// <param name="options">The parameters for composition of bind mount images.</param>
+    /// <returns>A <see cref="Task{TResult}"/> that represents the asynchronous operation. The task result contains a boolean value indicating the success or failure of the Docker image build process.</returns>
+    Task<bool> BuildImageForBindingMounts(BindMountImageBuilderOptions options);
+
+    /// <summary>
     /// Build and push a container for a Dockerfile.
     /// </summary>
     /// <param name="dockerfileResource">The Dockerfile to build the container from.</param>
@@ -39,18 +46,5 @@ public interface IContainerCompositionService
     /// It then pushes the created image to the specified registry.
     /// The nonInteractive parameter can be set to true to suppress any interactive prompts during the build process.
     /// </remarks>
-
-    /// <summary>
-    /// Asynchronously builds a Docker image for binding mounts.
-    /// </summary>
-    /// <param name="imageName">The name of the Docker image to be built.</param>
-    /// <param name="volumes">A dictionary containing the source and target paths for the volumes to be included in the Docker image. The key is the source path on the host machine, and the value is the target path in the Docker image.</param>
-    /// <param name="parameters">The parameters for the Docker container.</param>
-    /// <param name="nonInteractive">A boolean value indicating whether the build process should run in non-interactive mode. Defaults to false.</param>
-    /// <returns>A <see cref="Task{TResult}"/> that represents the asynchronous operation. The task result contains a boolean value indicating the success or failure of the Docker image build process.</returns>
-    Task<bool> BuildImageForBindingMounts(string imageName,
-        Dictionary<string, string> volumes,
-        ContainerParameters parameters,
-        bool nonInteractive = false);
     Task<bool> BuildAndPushContainerForDockerfile(DockerfileResource dockerfileResource, ContainerOptions options, bool? nonInteractive);
 }

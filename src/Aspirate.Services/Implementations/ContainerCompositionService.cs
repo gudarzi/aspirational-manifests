@@ -62,46 +62,40 @@ public sealed class ContainerCompositionService(
         return true;
     }
 
-    public async Task<bool> BuildImageForBindingMounts(
-        string imageName,
-        Dictionary<string, string> volumes,
-        ContainerParameters parameters,
-        bool nonInteractive = false)
+    public async Task<bool> BuildImageForBindingMounts(BindMountImageBuilderOptions options)
     {
-        var tempDirectoryPath = filesystem.Path.Combine(filesystem.Path.GetTempPath(), filesystem.Path.GetRandomFileName());
-        filesystem.Directory.CreateDirectory(tempDirectoryPath);
-
-        StageBindingMounts(filesystem, volumes, tempDirectoryPath);
+        StageBindingMounts(filesystem, options.Volumes, options.StagingDirectory);
 
         var dockerfileContent = new StringBuilder()
-            .AppendLine("FROM busybox");
+            .AppendLine("FROM busybox")
+            .AppendLine($"LABEL author=\"{AspirateLiterals.AspirateName}\"")
+            .AppendLine($"LABEL description=\"Image created by {AspirateLiterals.AspirateName} to populate binding mounts\"")
+            .AppendLine($"LABEL name=\"{options.ImageName}\"");
 
-        foreach (var volume in volumes)
+        foreach (var volume in options.Volumes)
         {
-            dockerfileContent.AppendLine($"COPY {volume.Value} {volume.Value}");
+            dockerfileContent.AppendLine($"COPY {volume.Value} /data/{volume.Value}");
         }
 
-        var dockerfileContentStr = dockerfileContent.ToString();
+        var completeDockerFileContents = dockerfileContent.ToString();
 
-        var tempFilePath = filesystem.Path.Combine(tempDirectoryPath, "Dockerfile");
-        await filesystem.File.WriteAllTextAsync(tempFilePath, dockerfileContentStr);
+        var tempFilePath = filesystem.Path.Combine(options.StagingDirectory, "Dockerfile");
+        await filesystem.File.WriteAllTextAsync(tempFilePath, completeDockerFileContents);
 
         var buildArgumentBuilder = ArgumentsBuilder
             .Create()
             .AppendArgument(DockerLiterals.BuildCommand, string.Empty, quoteValue: false)
-            .AppendArgument(DockerLiterals.TagArgument, imageName.ToLower())
+            .AppendArgument(DockerLiterals.TagArgument, options.ImageName.ToLower())
             .AppendArgument(DockerLiterals.DockerFileArgument, tempFilePath)
-            .AppendArgument(tempDirectoryPath, string.Empty, quoteValue: true);
+            .AppendArgument(options.StagingDirectory, string.Empty, quoteValue: true);
 
         var buildResult = await shellExecutionService.ExecuteCommand(new ShellCommandOptions
         {
-            Command = parameters.ContainerBuilder,
+            Command = options.ContainerBuilder,
             ArgumentsBuilder = buildArgumentBuilder,
-            NonInteractive = nonInteractive,
+            NonInteractive = options.NonInteractive,
             ShowOutput = true,
         });
-
-        filesystem.Directory.Delete(tempDirectoryPath, true);
 
         if (!buildResult.Success)
         {
@@ -109,7 +103,8 @@ public sealed class ContainerCompositionService(
             return false;
         }
 
-        console.MarkupLine($"[green bold]Successfully built Docker image '{imageName}' which contains binding mount data.[/]");
+        CleanUpStagedBindingMounts(filesystem, options.StagingDirectory);
+        console.MarkupLine($"[green bold]Successfully built Docker image '{options.ImageName}' which contains binding mount data.[/]");
         return true;
     }
 
@@ -291,14 +286,19 @@ public sealed class ContainerCompositionService(
         }
     }
 
-    private static void StageBindingMounts(IFileSystem fileSystem, Dictionary<string, string> volumes, string tempDirectoryPath)
+    private void StageBindingMounts(IFileSystem fileSystem, Dictionary<string, string> volumes, string tempDirectoryPath)
     {
+        filesystem.Directory.CreateDirectory(tempDirectoryPath);
+
         foreach (var (sourcePath, value) in volumes)
         {
             var targetPath = fileSystem.Path.Combine(tempDirectoryPath, value);
-            fileSystem.CopyDirectoryRecursively(sourcePath, targetPath);
+            fileSystem.RecursivelyCopyDirectory(sourcePath, targetPath, console);
         }
     }
+
+    private static void CleanUpStagedBindingMounts(IFileSystem fileSystem, string tempDirectoryPath) =>
+        fileSystem.RecursivelyDeleteDirectory(tempDirectoryPath);
 
     private async Task CheckIfBuilderIsRunning(string builder)
     {
